@@ -90,7 +90,7 @@ public:
    firest.drop_no=0;
    firest.pass_no=0;
    firest.current_pass=0;
-   FILE*fp=fopen("/home/sunmmer/firewall/rule.txt","r");
+   FILE*fp=fopen("/home/sunmmer/firewall/fire/rule.txt","r");
    char saddr[200];
    memset(saddr,0,sizeof(saddr));
    char daddr[200];
@@ -117,15 +117,17 @@ public:
 			(unsigned char *)&rp->daddr.addr+2,
 			(unsigned char *)&rp->daddr.addr+3,
 			&rp->daddr.mask,
-			&rp->sport,
+			&rp->dport,
 			&rp->protocol,
 			&rp->action);
 	    cout<<"rule push back"<<endl;
-	    cout<<rp->saddr.addr<<" "<<rp->protocol<<endl;
+	    cout<<rp->saddr.addr<<" "<<rp->protocol<<" "<<rp->sport<<endl;
 	   rules.push_back(r);
 
    }
+   cout<<"begin to close the rule file !"<<endl;
    fclose(fp);
+   cout<<"close the rule file successfully !"<<endl;
 
 }
 
@@ -133,15 +135,19 @@ public:
 	{
 		struct headinfo t;
 		struct headinfo* hd=&t;
+		cout<<"begin to format"<<endl;
 		Format(packet,hd);
+		cout<<"format packet completed"<<endl;
 		filter_local_out(hd);
-		p=&firest;
+		p->match_no=firest.match_no;
+		p->pass_no=firest.pass_no;
+		p->current_pass=firest.current_pass;
+		p->drop_no=firest.drop_no;
 
 
 	}
 
 private:
-
 
 		void Format(char* packet,struct headinfo* hd)
 	{
@@ -164,7 +170,6 @@ private:
 	       hd->protocol =  hd->m_pIphdr->protocol;
 	    return;
 	}
-
 
 	Bool CompareID_with_mask(uint32_t addr1, uint32_t addr2, uint8_t mask){
 		uint32_t addr1_temp, addr2_temp;
@@ -199,46 +204,57 @@ private:
 		s_port = GetPort(hd, SRC);
 		d_port = GetPort(hd, DEST);
 		vector<struct rule>::iterator ptr;
-		FILE*fp=fopen("/home/sunmmer/firewall/log.txt","wt");
+		FILE*fp=fopen("/home/sunmmer/firewall/fire/log.txt","a+");
+		if(fp==NULL)
+		{
+			cout<<"open file error"<<endl;
+			getchar();
+		}
+		cout<<"begin to enter loop"<<endl;
 		for(ptr=rules.begin();ptr!=rules.end();ptr++){
 
 			//gettimeofday(&timeval,NULL);
 			//local_time = (u32)(timeval.tv_sec + (8 * 60 * 60));
 			//rtc_time_to_tm(local_time, &tm);
+			cout<<" enter loop"<<endl;
 			t = time(NULL);
+			cout<<" get time 1"<<endl;
 			local = localtime(&t);
+			cout<<" get time 2"<<endl;
 			strftime(strtime, 64, "%Y-%m-%d %H:%M:%S", local);
+			cout<<" get time 3"<<endl;
 			match = false;
 			match = (ptr->saddr.addr == ANY_ADDR ? true : CompareID_with_mask(ptr->saddr.addr,s_addr,ptr->saddr.mask));
 			if(!match){
 
+				cout<<" sadd no match continue"<<endl;
 				continue;
 			}
 			match = (ptr->daddr.addr == ANY_ADDR ? true : CompareID_with_mask(ptr->daddr.addr,d_addr,ptr->daddr.mask));
 			if(!match){
-
+				cout<<" dadd no match continue"<<endl;
 				continue;
 			}
 			match = (ptr->protocol == ANY_PROTOCOL) ? true : (ptr->protocol == protocol);
 			if(!match){
-
+				cout<<" proto no match continue"<<endl;
 				continue;
 			}
 			match = (ptr->sport == ANY_PORT) ? true : (ptr->sport == s_port);
 			if(!match){
-
+				cout<<" sport no match continue"<<endl;
 				continue;
 			}
 			match = (ptr->dport == ANY_PORT) ? true : (ptr->dport == d_port);
 			if(!match){
-
+				cout<<" dport no match continue"<<endl;
 				continue;
 			}
 		//	match = ptr->action ? 0 : 1;
 
 			if(match){
 
-
+				cout<<"packet matches"<<endl;
 				flag = ptr->action?false:true;
 				++firest.match_no;
 					    fprintf(fp,
@@ -307,35 +323,49 @@ int main(int argc, char** argv)
      //char** a;
     //a[1]=(char*)malloc(sizeof(pkt1));a[1]=(char*)pkt1;
 
-struct rule a;
-struct rule* rp=&a;
+	struct ether_header *m_pEthhdr;
+	struct iphdr *m_pIphdr; 
+    char tmp1[2000];
+    memset(tmp1,0,sizeof(tmp1));
+    char *head=tmp1;
+    char *packet=tmp1+34;
+    uint16_t len;
+    firewall fire;
+    firewall_state t;
+    t.pass_no=0;
+    t.drop_no=0;
+    t.match_no=0;
 
    FILE* f;
-  if( (f=fopen("/home/sunmmer/firewall/rule.txt","rt"))==NULL)
+  if( (f=fopen("/home/sunmmer/firewall/fire/code.txt","r"))==NULL)
 	  {
-	  cout<<"error"<<endl;
+	  printf("OPen File failure\n");
 	  }
 
-   	   fscanf(f,"%hhu.%hhu.%hhu.%hhu /%u:%u, %hhu.%hhu.%hhu.%hhu /%u:%u, %u, %d",
-			(unsigned char *)&rp->saddr.addr,
-			((unsigned char *)&rp->saddr.addr)+1,
-			((unsigned char *)&rp->saddr.addr)+2,
-			((unsigned char *)&rp->saddr.addr)+3,
-			&rp->saddr.mask,
-			&rp->sport,
-			(unsigned char *)&rp->daddr.addr,
-			(unsigned char *)&rp->daddr.addr+1,
-			(unsigned char *)&rp->daddr.addr+2,
-			(unsigned char *)&rp->daddr.addr+3,
-			&rp->daddr.mask,
-			&rp->sport,
-			&rp->protocol,
-			&rp->action);
-   	   cout<<rp->saddr.addr<<endl;
-   	   cout<<rp->sport<<endl;
+   while (!feof(f))
+   {
+	   cout<<"begin to read code"<<endl;
+	   fread(head,34,1,f);
+	   cout<<"read head ok"<<endl;
+	   m_pEthhdr=(struct ether_header *)head;
+	   m_pIphdr=(struct iphdr *)(head+sizeof(struct ether_header));
+	   len = ntohs(m_pIphdr->tot_len);
+	   printf("length: %x\n",len);
+	   cout<<"begin to read  packet"<<endl;
+	   fread(packet,len-20,1,f);
+	   cout<<"read  packet ok"<<endl;
+	   cout<<"put packet to the hander"<<endl;
+	   fire.handle(head,&t);
+	  // struct headinfo t;
+	  // struct headinfo *hd=&t;
+	   //Format(head,hd);
+	  // filter_local_out(hd);
+
+  }
 
 
     fclose(f);
+    printf("pass number: %d\ndrop number: %d\nmatch number:%d\n",t.pass_no,t.drop_no,t.match_no);
 
 }
 
